@@ -120,7 +120,7 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
     )
     
     try:
-        normal_font = 'Inter-Regular'
+        normal_font = 'Inter-Medium'  # Use Medium instead of Regular for better readability
         pdfmetrics.getFont(normal_font)
     except:
         normal_font = 'Helvetica'
@@ -216,7 +216,7 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
         table_data = [['DESCRIPTION', 'DATE', 'HOURS', 'RATE', 'AMOUNT']]
         
         for event in events:
-            event_date = datetime.fromisoformat(event['start_time']).strftime('%m/%d')
+            event_date = datetime.fromisoformat(event['start_time']).strftime('%d/%m')  # DD/MM format
             description = event['title'][:50]  # Truncate long titles
             hours = f"{event['duration_hours']:.1f}"
             rate = f"{hourly_rate:,.0f}"
@@ -246,7 +246,8 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
         ('FONTNAME', (0, 0), (-1, 0), heading_font),
         ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),  # Description column header left-aligned
+        ('ALIGN', (1, 0), (-1, 0), 'RIGHT'),  # Quantity and Amount columns right-aligned
         
         # Data rows
         ('FONTNAME', (0, 1), (-1, -2), normal_font),
@@ -258,9 +259,16 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
         ('FONTNAME', (-2, -1), (-1, -1), heading_font),
         ('ALIGN', (-2, -1), (-1, -1), 'RIGHT'),
         
-        # Grid
-        ('GRID', (0, 0), (-1, -2), 0.5, colors.grey),
-        ('LINEBELOW', (0, -1), (-1, -1), 1, colors.black),
+        # Padding - add more vertical space
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        
+        # Borders - only horizontal lines between rows, no outer border
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#d0d0d0')),  # Below header
+        ('LINEBELOW', (0, 1), (-1, -2), 0.5, colors.HexColor('#e0e0e0')),  # Between data rows
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.black),  # Above subtotal
     ]))
     story.append(items_table)
     story.append(Spacer(1, 0.3*inch))
@@ -308,8 +316,14 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
     for info in payment_info:
         story.append(Paragraph(info, normal_style))
     
-    # Build PDF
-    doc.build(story, onFirstPage=add_logo, onLaterPages=add_logo)
+    # Build PDF - logo only on first page
+    def add_logo_first_page_only(canvas_obj, doc):
+        add_logo(canvas_obj, doc)
+    
+    def no_logo(canvas_obj, doc):
+        pass  # No logo on subsequent pages
+    
+    doc.build(story, onFirstPage=add_logo_first_page_only, onLaterPages=no_logo)
     
     # Save invoice record to database
     Invoice.create(

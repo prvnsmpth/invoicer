@@ -1,0 +1,17 @@
+[project]
+name = "invoicer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.2.1",
+    "google-api-python-client>=2.179.0",
+    "google-auth>=2.40.3",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.2",
+    "python-dateutil>=2.9.0.post0",
+    "pytz>=2025.2",
+    "reportlab>=4.4.3",
+    "requests>=2.32.5",
+]

@@ -375,6 +375,6 @@ def add_logo(canvas_obj, doc):
 
 
 def format_date(date_str: str) -> str:
-    """Format date from YYYY-MM-DD to MM/DD/YYYY."""
+    """Format date from YYYY-MM-DD to DD/MM/YYYY (Indian format)."""
     dt = datetime.strptime(date_str, '%Y-%m-%d')
-    return dt.strftime('%m/%d/%Y')
+    return dt.strftime('%d/%m/%Y')

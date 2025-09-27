@@ -141,6 +141,31 @@ class InvoiceCycle:
             ''', (hourly_rate, cycle_id))
             conn.commit()
 
+    @staticmethod
+    def delete(cycle_id: int) -> bool:
+        """Delete an invoice cycle and unassign its events."""
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+
+                # First unassign all events from this cycle
+                cursor.execute('''
+                    UPDATE calendar_events
+                    SET cycle_id = NULL
+                    WHERE cycle_id = ?
+                ''', (cycle_id,))
+
+                # Delete the cycle
+                cursor.execute('''
+                    DELETE FROM invoice_cycles WHERE id = ?
+                ''', (cycle_id,))
+
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception as e:
+            print(f"Error deleting cycle: {e}")
+            return False
+
 
 class CalendarEvent:
     @staticmethod
@@ -270,13 +295,30 @@ class Invoice:
             return dict(row) if row else None
     
     @staticmethod
+    def get_by_cycle(cycle_id: int) -> List[Dict]:
+        """Get all invoices for a specific cycle."""
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT
+                    i.*,
+                    c.name as cycle_name,
+                    c.client_name
+                FROM invoices i
+                JOIN invoice_cycles c ON i.cycle_id = c.id
+                WHERE i.cycle_id = ?
+                ORDER BY i.generated_at DESC
+            ''', (cycle_id,))
+            return [dict(row) for row in cursor.fetchall()]
+
+    @staticmethod
     def delete(invoice_number: str) -> bool:
         """Delete invoice by invoice number and optionally delete PDF file."""
         # First get the invoice to check if PDF file exists
         invoice = Invoice.get_by_number(invoice_number)
         if not invoice:
             return False
-            
+
         # Delete PDF file if it exists
         if invoice.get('pdf_path'):
             pdf_path = Path(invoice['pdf_path'])

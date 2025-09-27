@@ -1,7 +1,7 @@
 [project]
 name = "invoicer"
 version = "0.1.0"
-description = "Add your description here"
+description = "Dead simple invoicing tool that integrates with Google Calendar"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,3 +15,9 @@ dependencies = [
     "reportlab>=4.4.3",
     "requests>=2.32.5",
 ]
+
+[project.scripts]
+invoicer = "main:cli"
+
+[tool.setuptools]
+py-modules = ["main", "auth", "calendar_client", "database", "config", "pdf_generator"]

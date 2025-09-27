@@ -106,8 +106,25 @@ def cycle():
 @click.option('--client-name', help='Client company name')
 @click.option('--client-address', help='Client address')
 @click.option('--client-gstin', help='Client GSTIN')
-def create_cycle(name, start, end, rate, client_name, client_address, client_gstin):
+@click.option('--copy-from', type=int, help='Copy client details and rate from existing cycle ID')
+def create_cycle(name, start, end, rate, client_name, client_address, client_gstin, copy_from):
     """Create a new invoice cycle."""
+    # If copy-from is specified, load client details from that cycle
+    if copy_from:
+        source_cycle = InvoiceCycle.get(copy_from)
+        if not source_cycle:
+            click.echo(f"✗ Source cycle {copy_from} not found", err=True)
+            sys.exit(1)
+
+        # Use source cycle values as defaults if not explicitly provided
+        if not rate and not client_name and not client_address and not client_gstin:
+            click.echo(f"Copying client details from cycle: {source_cycle['name']}")
+
+        rate = rate or source_cycle['hourly_rate']
+        client_name = client_name or source_cycle['client_name']
+        client_address = client_address or source_cycle['client_address']
+        client_gstin = client_gstin or source_cycle['client_gstin']
+
     try:
         cycle_id = InvoiceCycle.create(
             name=name,
@@ -119,6 +136,11 @@ def create_cycle(name, start, end, rate, client_name, client_address, client_gst
             client_gstin=client_gstin
         )
         click.echo(f"✓ Created invoice cycle '{name}' (ID: {cycle_id})")
+        click.echo(f"  Period: {start} to {end}")
+        if copy_from and client_name:
+            click.echo(f"  Client: {client_name}")
+            if rate:
+                click.echo(f"  Rate: ₹{rate}/hour")
     except Exception as e:
         click.echo(f"✗ Failed to create cycle: {str(e)}", err=True)
         sys.exit(1)
@@ -143,6 +165,52 @@ def list_cycles():
         rate = f"₹{c['hourly_rate']}/h" if c['hourly_rate'] else "Not set"
         client = c['client_name'] or "Not set"
         click.echo(f"{c['id']:4} {c['name'][:30]:30} {period:25} {rate:10} {client[:20]:20}")
+
+
+@cycle.command('delete')
+@click.argument('cycle_id', type=int)
+@click.option('--yes', '-y', is_flag=True, help='Skip confirmation prompt')
+def delete_cycle(cycle_id, yes):
+    """Delete an invoice cycle."""
+    cycle = InvoiceCycle.get(cycle_id)
+    if not cycle:
+        click.echo(f"✗ Invoice cycle {cycle_id} not found", err=True)
+        sys.exit(1)
+
+    # Check if cycle has any assigned events
+    events = CalendarEvent.get_by_cycle(cycle_id)
+
+    # Check if cycle has any invoices
+    invoices = Invoice.get_by_cycle(cycle_id)
+
+    # Show cycle details
+    click.echo(f"\nCycle to delete:")
+    click.echo(f"  ID: {cycle['id']}")
+    click.echo(f"  Name: {cycle['name']}")
+    click.echo(f"  Period: {cycle['start_date']} to {cycle['end_date']}")
+    click.echo(f"  Client: {cycle['client_name'] or 'Not set'}")
+
+    if events:
+        click.echo(f"  ⚠ Has {len(events)} assigned events")
+
+    if invoices:
+        click.echo(f"  ⚠ Has {len(invoices)} generated invoice(s)")
+        click.echo("    Invoices will NOT be deleted")
+
+    # Confirm deletion unless --yes flag is used
+    if not yes:
+        if not click.confirm("\nAre you sure you want to delete this cycle?"):
+            click.echo("Operation cancelled.")
+            return
+
+    # Delete the cycle
+    if InvoiceCycle.delete(cycle_id):
+        click.echo(f"✓ Invoice cycle '{cycle['name']}' deleted successfully.")
+        if events:
+            click.echo(f"  Events have been unassigned from the cycle.")
+    else:
+        click.echo(f"✗ Failed to delete invoice cycle.")
+        sys.exit(1)
 
 
 @cycle.command('assign')

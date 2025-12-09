@@ -1,3 +1,5 @@
+from calendar import monthrange
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -218,7 +220,7 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
         for event in events:
             event_date = datetime.fromisoformat(event['start_time']).strftime('%d/%m')  # DD/MM format
             description = event['title'][:50]  # Truncate long titles
-            hours = f"{event['duration_hours']:.1f}"
+            hours = f"{event['duration_hours']:.2f}"
             rate = f"{hourly_rate:,.0f}"
             amount = f"{event['duration_hours'] * hourly_rate:,.2f}"
             table_data.append([description, event_date, hours, rate, amount])
@@ -230,12 +232,14 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
     else:
         # Summary invoice with single line item
         table_data = [['DESCRIPTION', 'QUANTITY', 'AMOUNT']]
+
+        # Format period for description - use the majority month
+        cycle_start_dt = datetime.strptime(cycle['start_date'], '%Y-%m-%d')
+        cycle_end_dt = datetime.strptime(cycle['end_date'], '%Y-%m-%d')
+        majority_month = get_majority_month(cycle_start_dt, cycle_end_dt)
+        description = f"Consulting Charges - {majority_month} ({total_hours:.2f} hours * {hourly_rate:,.0f} {DEFAULT_CURRENCY}/hour)"
         
-        # Format period for description
-        cycle_start = datetime.strptime(cycle['start_date'], '%Y-%m-%d').strftime('%b %Y')
-        description = f"Consulting Charges - {cycle_start} ({total_hours:.1f} hours * {hourly_rate:,.0f} {DEFAULT_CURRENCY}/hour)"
-        
-        table_data.append([description, f"{total_hours:.1f}", f"{total_amount:,.2f}"])
+        table_data.append([description, f"{total_hours:.2f}", f"{total_amount:,.2f}"])
         table_data.append(['', 'SUBTOTAL', f"{total_amount:,.2f} {DEFAULT_CURRENCY}"])
         
         col_widths = [4.5*inch, 1.25*inch, 1.25*inch]
@@ -378,3 +382,25 @@ def format_date(date_str: str) -> str:
     """Format date from YYYY-MM-DD to DD/MM/YYYY (Indian format)."""
     dt = datetime.strptime(date_str, '%Y-%m-%d')
     return dt.strftime('%d/%m/%Y')
+
+
+def get_majority_month(start_date: datetime, end_date: datetime) -> str:
+    """Determine the majority month in a date range and return as 'Mon YYYY' format.
+
+    For a range like Oct 30 - Nov 30, most days fall in November, so return 'Nov 2024'.
+    """
+    # Count days in each (year, month) combination
+    month_days = defaultdict(int)
+
+    current = start_date
+    while current <= end_date:
+        key = (current.year, current.month)
+        month_days[key] += 1
+        current += timedelta(days=1)
+
+    # Find the month with the most days
+    majority_key = max(month_days, key=month_days.get)
+
+    # Format as "Mon YYYY"
+    majority_date = datetime(majority_key[0], majority_key[1], 1)
+    return majority_date.strftime('%b %Y')

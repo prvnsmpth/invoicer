@@ -45,10 +45,10 @@ python main.py fetch --start 2025-07-01 --end 2025-07-31
 python main.py cycle create "Client Name - July 2025" \
   --start 2025-07-01 \
   --end 2025-07-31 \
-  --rate 4000 \
-  --client-name "YOptima Media Solutions Pvt. Ltd." \
-  --client-address "Workhub by Novel Office,\nWhitefield, Bengaluru" \
-  --client-gstin "29AAACY6150G1Z7"
+  --rate 150 \
+  --client-name "Acme Corp Pvt. Ltd." \
+  --client-address "123 Business Park,\nBengaluru" \
+  --client-gstin "29AABCU9603R1ZM"
 ```
 
 ### 4. Assign events to cycle
@@ -60,10 +60,10 @@ python main.py cycle assign 1
 ### 5. Generate invoice
 ```bash
 # Summary format (single line item)
-python main.py generate 1 --rate 4000
+python main.py generate 1 --rate 150
 
 # Detailed format (individual line items)
-python main.py generate 1 --rate 4000 --detailed
+python main.py generate 1 --rate 150 --detailed
 
 # Custom invoice date and payment terms
 python main.py generate 1 --invoice-date 2025-07-31 --due-days 30
@@ -90,15 +90,15 @@ python main.py profile
 ### Summary Invoice
 Shows total consulting hours as a single line item:
 ```
-Consulting Charges - July '25 (17.5 hours * 4,000 INR/hour)    17.5    70,000.00
+Consulting Charges - July '25 (17.5 hours * 150 USD/hour)    17.5    2,625.00
 ```
 
 ### Detailed Invoice
 Lists each calendar event separately:
 ```
-Project Meeting            07/15    2.0    4,000    8,000.00
-Code Review               07/16    1.5    4,000    6,000.00
-Development Sprint        07/17    4.0    4,000   16,000.00
+Project Meeting            07/15    2.0    150    300.00
+Code Review               07/16    1.5    150    225.00
+Development Sprint        07/17    4.0    150    600.00
 ```
 
 ## Data Storage

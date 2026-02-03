@@ -324,8 +324,8 @@ def invoices():
     pass
 
 
-@invoices.command()
-def list():
+@invoices.command('list')
+def list_invoices():
     """List all generated invoices."""
     invoice_list = Invoice.list_all()
     
@@ -381,6 +381,52 @@ def delete(invoice_number, yes):
         click.echo(f"✓ Invoice {invoice_number} deleted successfully.")
     else:
         click.echo(f"✗ Failed to delete invoice {invoice_number}.")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument('cycle_id', type=int)
+@click.option('--output', '-o', help='Custom output filename')
+@click.option('--rate', type=float, help='Hourly rate in INR (overrides cycle rate)')
+def report(cycle_id, output, rate):
+    """Generate Excel work report for a cycle."""
+    cycle = InvoiceCycle.get(cycle_id)
+    if not cycle:
+        click.echo(f"✗ Invoice cycle {cycle_id} not found", err=True)
+        sys.exit(1)
+
+    # Determine hourly rate
+    hourly_rate = rate or cycle['hourly_rate']
+    if not hourly_rate:
+        hourly_rate = click.prompt('Enter hourly rate in INR', type=float)
+        InvoiceCycle.update_rate(cycle_id, hourly_rate)
+
+    # Get events for this cycle
+    events = CalendarEvent.get_by_cycle(cycle_id)
+    if not events:
+        click.echo(f"✗ No events assigned to this cycle", err=True)
+        sys.exit(1)
+
+    # Get user profile
+    profile = UserProfile.get_or_create()
+    if profile['full_name'] == 'Your Name':
+        click.echo("\n⚠ Please update your profile first:")
+        profile['full_name'] = click.prompt('Your full name')
+        UserProfile.update(profile)
+
+    from report_generator import generate_work_report
+
+    try:
+        report_path = generate_work_report(
+            cycle=cycle,
+            events=events,
+            profile=profile,
+            hourly_rate=hourly_rate,
+            output_path=output
+        )
+        click.echo(f"✓ Work report generated: {report_path}")
+    except Exception as e:
+        click.echo(f"✗ Failed to generate work report: {str(e)}", err=True)
         sys.exit(1)
 
 

@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
+import re
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
@@ -51,6 +52,7 @@ def register_inter_fonts():
 def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
                          hourly_rate: float, detailed: bool = False,
                          invoice_date: Optional[str] = None,
+                         invoice_number: Optional[str] = None,
                          due_days: int = 30) -> str:
     """Generate PDF invoice in the style of the sample."""
     
@@ -58,7 +60,7 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
     register_inter_fonts()
     
     # Generate invoice details
-    invoice_number = Invoice.get_next_invoice_number()
+    invoice_number = invoice_number or Invoice.get_next_invoice_number()
     if not invoice_date:
         invoice_date = datetime.now().strftime('%Y-%m-%d')
     
@@ -70,7 +72,8 @@ def generate_invoice_pdf(cycle: Dict, events: List[Dict], profile: Dict,
     total_amount = total_hours * hourly_rate
     
     # Create PDF filename
-    pdf_filename = f"invoice-{invoice_number.replace('#', '')}-{invoice_date}.pdf"
+    safe_invoice_number = re.sub(r'[^A-Za-z0-9._-]+', '-', invoice_number.replace('#', '')).strip('-')
+    pdf_filename = f"invoice-{safe_invoice_number or 'custom'}-{invoice_date}.pdf"
     pdf_path = INVOICES_DIR / pdf_filename
     
     # Create the PDF

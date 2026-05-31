@@ -300,12 +300,17 @@ def assign_events(cycle_id):
 @click.option('--rate', type=float, help='Hourly rate in INR (overrides cycle rate)')
 @click.option('--detailed', is_flag=True, help='Generate detailed invoice with individual line items')
 @click.option('--invoice-date', help='Invoice date (YYYY-MM-DD), defaults to today')
+@click.option('--invoice-number', help='Custom invoice number (defaults to next auto-generated number)')
 @click.option('--due-days', default=30, help='Payment terms in days (default: 30)')
-def generate(cycle_id, rate, detailed, invoice_date, due_days):
+def generate(cycle_id, rate, detailed, invoice_date, invoice_number, due_days):
     """Generate PDF invoice for a cycle."""
     cycle = InvoiceCycle.get(cycle_id)
     if not cycle:
         click.echo(f"✗ Invoice cycle {cycle_id} not found", err=True)
+        sys.exit(1)
+
+    if invoice_number and Invoice.get_by_number(invoice_number):
+        click.echo(f"✗ Invoice number {invoice_number} already exists", err=True)
         sys.exit(1)
     
     # Determine hourly rate
@@ -345,6 +350,7 @@ def generate(cycle_id, rate, detailed, invoice_date, due_days):
             hourly_rate=hourly_rate,
             detailed=detailed,
             invoice_date=invoice_date,
+            invoice_number=invoice_number,
             due_days=due_days
         )
         click.echo(f"✓ Invoice generated: {pdf_path}")

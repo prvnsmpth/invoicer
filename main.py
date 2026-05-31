@@ -98,17 +98,37 @@ def cycle():
     pass
 
 
+def prompt_optional_text(label):
+    value = click.prompt(label, default='', show_default=False)
+    return value.strip() or None
+
+
+def prompt_optional_float(label):
+    while True:
+        value = click.prompt(label, default='', show_default=False)
+        if not value.strip():
+            return None
+
+        try:
+            return float(value)
+        except ValueError:
+            click.echo('Please enter a valid number, or leave blank to skip.', err=True)
+
+
 @cycle.command('create')
-@click.argument('name')
-@click.option('--start', required=True, help='Start date (YYYY-MM-DD)')
-@click.option('--end', required=True, help='End date (YYYY-MM-DD)')
+@click.argument('name', required=False)
+@click.option('--start', help='Start date (YYYY-MM-DD)')
+@click.option('--end', help='End date (YYYY-MM-DD)')
 @click.option('--rate', type=float, help='Hourly rate in INR')
 @click.option('--client-name', help='Client company name')
 @click.option('--client-address', help='Client address')
 @click.option('--client-gstin', help='Client GSTIN')
 @click.option('--copy-from', type=int, help='Copy client details and rate from existing cycle ID')
-def create_cycle(name, start, end, rate, client_name, client_address, client_gstin, copy_from):
+@click.option('--interactive', '-i', is_flag=True, help='Prompt for cycle details interactively')
+def create_cycle(name, start, end, rate, client_name, client_address, client_gstin, copy_from, interactive):
     """Create a new invoice cycle."""
+    interactive = interactive or not all([name, start, end])
+
     # If copy-from is specified, load client details from that cycle
     if copy_from:
         source_cycle = InvoiceCycle.get(copy_from)
@@ -125,6 +145,21 @@ def create_cycle(name, start, end, rate, client_name, client_address, client_gst
         client_address = client_address or source_cycle['client_address']
         client_gstin = client_gstin or source_cycle['client_gstin']
 
+    if interactive:
+        click.echo("Create a new invoice cycle")
+        name = name or click.prompt('Cycle name')
+        start = start or click.prompt('Start date (YYYY-MM-DD)')
+        end = end or click.prompt('End date (YYYY-MM-DD)')
+
+        if rate is None:
+            rate = prompt_optional_float('Hourly rate in INR')
+        if client_name is None:
+            client_name = prompt_optional_text('Client company name')
+        if client_address is None:
+            client_address = prompt_optional_text('Client address')
+        if client_gstin is None:
+            client_gstin = prompt_optional_text('Client GSTIN')
+
     try:
         cycle_id = InvoiceCycle.create(
             name=name,
@@ -137,10 +172,10 @@ def create_cycle(name, start, end, rate, client_name, client_address, client_gst
         )
         click.echo(f"✓ Created invoice cycle '{name}' (ID: {cycle_id})")
         click.echo(f"  Period: {start} to {end}")
-        if copy_from and client_name:
+        if client_name:
             click.echo(f"  Client: {client_name}")
-            if rate:
-                click.echo(f"  Rate: ₹{rate}/hour")
+        if rate:
+            click.echo(f"  Rate: ₹{rate}/hour")
     except Exception as e:
         click.echo(f"✗ Failed to create cycle: {str(e)}", err=True)
         sys.exit(1)

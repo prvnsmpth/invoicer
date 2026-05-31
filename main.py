@@ -354,6 +354,10 @@ def generate(cycle_id, rate, detailed, invoice_date, invoice_number, due_days):
             due_days=due_days
         )
         click.echo(f"✓ Invoice generated: {pdf_path}")
+        try:
+            click.launch(str(pdf_path))
+        except click.ClickException as e:
+            click.echo(f"⚠ Could not open invoice automatically: {e.message}", err=True)
     except Exception as e:
         click.echo(f"✗ Failed to generate invoice: {str(e)}", err=True)
         sys.exit(1)
@@ -466,6 +470,10 @@ def report(cycle_id, output, rate):
             output_path=output
         )
         click.echo(f"✓ Work report generated: {report_path}")
+        try:
+            click.launch(str(report_path))
+        except click.ClickException as e:
+            click.echo(f"⚠ Could not open work report automatically: {e.message}", err=True)
     except Exception as e:
         click.echo(f"✗ Failed to generate work report: {str(e)}", err=True)
         sys.exit(1)
